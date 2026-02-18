@@ -17,7 +17,6 @@ declare -a PYTHON_EGG_FOLDERS
 declare -a PYTHON_BUILD_FOLDERS
 declare -a ANDROID_BUILD_FOLDERS
 declare -a GRADLE_FOLDERS
-declare -a GRADLE_EXECUTION_HISTORY_FOLDERS
 declare -a IOS_BUILD_FOLDERS
 declare -a PODS_FOLDERS
 declare -a DERIVEDDATA_FOLDERS
@@ -117,9 +116,6 @@ add_folder() {
         "gradle")
             GRADLE_FOLDERS+=("$path|$formatted_size|$size")
             ;;
-        "gradle_execution_history")
-            GRADLE_EXECUTION_HISTORY_FOLDERS+=("$path|$formatted_size|$size")
-            ;;
         "ios_build")
             IOS_BUILD_FOLDERS+=("$path|$formatted_size|$size")
             ;;
@@ -173,11 +169,15 @@ scan_directories() {
         fi
     done < <(find "$base_dir" -type d \( -name "build" -o -name "dist" \) -not -path "*/\.*" -print0 2>/dev/null)
     
-    # Find Android build folders
+    # Find Android build folders - WITH .kts SUPPORT
     echo -e "${GREEN}Scanning for Android build folders...${NC}"
     while IFS= read -r -d '' dir; do
-        parent_dir=$(dirname "$dir")
-        if [ -f "$parent_dir/settings.gradle" ] || [ -f "$parent_dir/build.gradle" ] || [ -f "$parent_dir/gradle.properties" ]; then
+        # Check if there's a gradle file somewhere in the path
+        if find "$(dirname "$dir")" -maxdepth 3 \( \
+            -name "settings.gradle" -o \
+            -name "settings.gradle.kts" -o \
+            -name "build.gradle" -o \
+            -name "build.gradle.kts" \) 2>/dev/null | grep -q .; then
             add_folder "$dir" "android_build"
         fi
     done < <(find "$base_dir" -type d -name "build" -not -path "*/\.*" -print0 2>/dev/null)
@@ -187,15 +187,6 @@ scan_directories() {
     while IFS= read -r -d '' dir; do
         add_folder "$dir" "gradle"
     done < <(find "$base_dir" -type d -name ".gradle" -not -path "*/\.*" -print0 2>/dev/null)
-    
-    # Find Gradle execution history folders
-    echo -e "${GREEN}Scanning for Gradle execution history...${NC}"
-    while IFS= read -r -d '' dir; do
-        # Only add if it's an executionHistory folder inside a Gradle cache
-        if [[ "$dir" == *"/caches/"*"/executionHistory" ]]; then
-            add_folder "$dir" "gradle_execution_history"
-        fi
-    done < <(find "$base_dir" -type d -path "*/caches/*/executionHistory" -not -path "*/\.*" -print0 2>/dev/null)
     
     # Find iOS/macOS build folders
     echo -e "${PURPLE}Scanning for iOS/macOS build folders...${NC}"
@@ -259,7 +250,6 @@ show_summary() {
     print_category "Python Build/Dist" "🐍" "$YELLOW" "${PYTHON_BUILD_FOLDERS[@]}"
     print_category "Android Build" "🤖" "$GREEN" "${ANDROID_BUILD_FOLDERS[@]}"
     print_category "Gradle Cache" "🤖" "$GREEN" "${GRADLE_FOLDERS[@]}"
-    print_category "Gradle Execution History" "📜" "$GREEN" "${GRADLE_EXECUTION_HISTORY_FOLDERS[@]}"
     print_category "iOS/macOS Build" "🍎" "$PURPLE" "${IOS_BUILD_FOLDERS[@]}"
     print_category "CocoaPods" "🍎" "$PURPLE" "${PODS_FOLDERS[@]}"
     print_category "Xcode DerivedData" "🍎" "$PURPLE" "${DERIVEDDATA_FOLDERS[@]}"
