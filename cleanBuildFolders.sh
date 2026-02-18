@@ -142,11 +142,20 @@ scan_directories() {
         add_folder "$dir" "node_modules"
     done < <(find "$base_dir" -type d -name "node_modules" -not -path "*/\.*" -print0 2>/dev/null)
     
-    # Find Python virtual environments
+        # Find Python virtual environments
     echo -e "${YELLOW}Scanning for Python virtual environments...${NC}"
     while IFS= read -r -d '' dir; do
-        add_folder "$dir" "python_venv"
-    done < <(find "$base_dir" -type d \( -name "venv" -o -name ".venv" -o -name "env" -o -name ".env" -o -name "virtualenv" \) -not -path "*/\.*" -print0 2>/dev/null)
+        # Only skip if it's inside specific hidden directories we want to ignore
+        if [[ "$dir" != *"/.git/"* ]] && [[ "$dir" != *"/.idea/"* ]] && [[ "$dir" != *"/.vscode/"* ]]; then
+            add_folder "$dir" "python_venv"
+        fi
+    done < <(find "$base_dir" -type d \( \
+        -name "venv" -o \
+        -name ".venv" -o \
+        -name "env" -o \
+        -name ".env" -o \
+        -name "virtualenv" \) \
+        -print0 2>/dev/null)
     
     # Find Python cache directories
     echo -e "${YELLOW}Scanning for Python cache...${NC}"
